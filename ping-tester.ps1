@@ -1,25 +1,3 @@
-# =================================================================================
-# Gamer's Real-Time Server Ping Monitor (Columnar Log with Periodic Headers)
-#
-# DESCRIPTION:
-# This script continuously pings a list of game servers and DNS resolvers, 
-# and appends results as a new row in a column-based, scrollable log 
-# with custom colors and names.
-#
-# USAGE:
-# 1. Run this script in a PowerShell terminal.
-# 2. The headers will appear, and script will pause for 2 seconds.
-# 3. The first line of ping data will appear, followed by another header.
-# 4. From then on, new rows are added, and headers appear every 25 lines.
-# 5. Press CTRL+C to stop script.
-#
-# TIP:
-# To see more history, right-click the PowerShell title bar -> Properties ->
-# Layout tab -> increase the "Screen Buffer Size" Height.
-# =================================================================================
-
-# --- CONFIGURATION ---
-# Add or remove server names from this list, in the desired order
  $servers = @(
     "1.1.1.1",
     "4.2.2.2",
@@ -29,107 +7,110 @@
     "eu.gamerkhaan.com"
 )
 
-# Mapping of full server names to shorter, cleaner display names
+# Updated display names to use a space for better color splitting
  $serverDisplayNames = @{
-    "1.1.1.1"                  = "1.1.1.1"
-    "4.2.2.2"                  = "4.2.2.2"
-    "eu-epic.gamerkhaan.com" = "EpicGames-EU"
-    "uae-epic.gamerkhaan.com" = "EpicGames-UAE"
-    "uae.gamerkhaan.com"       = "Gamerkhaan-UAE"
-    "eu.gamerkhaan.com"       = "Gamerkhaan-EU"
+    "1.1.1.1" = "🌐 1.1.1.1"
+    "4.2.2.2" = "🌐 4.2.2.2"
+    "eu-epic.gamerkhaan.com" = "🎮 EpicGames EU"
+    "uae-epic.gamerkhaan.com" = "🎮 EpicGames UAE"
+    "uae.gamerkhaan.com" = "🕹️ GamerKhaan UAE"
+    "eu.gamerkhaan.com" = "🕹️ GamerKhaan EU"
 }
 
-# Number of rows of ping data to show before reprinting the headers (after the first run)
  $headerInterval = 15
+ $columnWidth = 20  # Increased a bit for emojis
 
-# --- SCRIPT ---
-
-# Define a fixed width for each column. Reduced for tighter spacing.
- $columnWidth = 18
-
-# A helper function to print the headers to avoid code duplication
 function Write-Header {
     param($Servers, $ColumnWidth, $DisplayNames)
-    # Print the server names as headers
     foreach ($server in $Servers) {
         $displayName = $DisplayNames[$server]
-        if (-not $displayName) {
-            $displayName = $server
-        }
-
-        # Calculate padding to center the entire display name
+        if (-not $displayName) { $displayName = $server }
+        
+        # Calculate padding for the entire display name
         $totalPadding = $ColumnWidth - $displayName.Length
         $leftPadding = [math]::Floor($totalPadding / 2)
         $rightPadding = $ColumnWidth - $leftPadding - $displayName.Length
-
-        # Write the left padding
         Write-Host (" " * $leftPadding) -NoNewline
 
-        # --- Write of name parts with different colors ---
-        if ($displayName -like "*Gamerkhaan*") {
-            $prefix = "Gamerkhaan-"
-            $suffix = $displayName.Substring($prefix.Length)
-            Write-Host $prefix -NoNewline -ForegroundColor Red
-            Write-Host $suffix -NoNewline -ForegroundColor White
-        }
-        elseif ($displayName -like "*EpicGames*") {
-            $prefix = "EpicGames-"
-            $suffix = $displayName.Substring($prefix.Length)
-            Write-Host $prefix -NoNewline -ForegroundColor Yellow
-            Write-Host $suffix -NoNewline -ForegroundColor White
-        }
-        else {
-            # For other servers (like 1.1.1.1), use the old logic
-            $headerColor = "White"
-            if ($displayName -eq "1.1.1.1") { $headerColor = "White" }
-            elseif ($displayName -eq "4.2.2.2") { $headerColor = "Magenta" }
+        # --- Color Logic ---
+        if ($displayName -like "*GamerKhaan*") {
+            # Splits "🕹️ GamerKhaan UAE" into parts
+            $parts = $displayName -split ' ', 3
+            Write-Host $parts[0] -NoNewline # Emoji
+            Write-Host " " -NoNewline
+            Write-Host $parts[1] -NoNewline -ForegroundColor Yellow # "GamerKhaan"
+            Write-Host " " -NoNewline
+            Write-Host $parts[2] -NoNewline -ForegroundColor White  # "EU" or "UAE"
+        } elseif ($displayName -like "*EpicGames*") {
+            # Splits "🎮 EpicGames EU" into parts
+            $parts = $displayName -split ' ', 3
+            Write-Host $parts[0] -NoNewline # Emoji
+            Write-Host " " -NoNewline
+            Write-Host $parts[1] -NoNewline -ForegroundColor Red    # "EpicGames"
+            Write-Host " " -NoNewline
+            Write-Host $parts[2] -NoNewline -ForegroundColor White  # "EU" or "UAE"
+        } else {
+            # Default coloring for public DNS servers
+            $headerColor = "Cyan"
+            if ($displayName -like "*1.1.1.1*") { $headerColor = "White" }
+            elseif ($displayName -like "*4.2.2.2*") { $headerColor = "Magenta" }
             Write-Host $displayName -NoNewline -ForegroundColor $headerColor
         }
-
-        # Write the right padding
+        # --- End Color Logic ---
+        
         Write-Host (" " * $rightPadding) -NoNewline
     }
-    Write-Host "" # Move to the next line after printing all headers
-    # Print a separator line
-    Write-Host ("-" * ($ColumnWidth * $Servers.Count)) -ForegroundColor Gray
+    Write-Host ""
+    Write-Host ("═" * ($ColumnWidth * $Servers.Count)) -ForegroundColor Cyan
 }
 
-# --- Step 1: Print the Header and Pause ---
+ $pingData = @{}
+foreach ($server in $servers) {
+    $pingData[$server] = @{
+        Latencies = New-Object System.Collections.Generic.List[int]
+        Timeouts = 0
+    }
+}
+
+ $startTime = Get-Date
+
 Clear-Host
-Write-Host "==================== Gamer Server Ping Monitor (Columns) ====================" -ForegroundColor Cyan
-Write-Host "Monitoring started at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
+Write-Host @"
+   ___           ___           ___      
+  /  /\         /  /\         /  /\     
+ /  /:/_       /  /:/        /  /:/_    
+/  /:/ /\     /  /:/        /  /:/ /\   
+/  /:/ /:/_   /  /:/  ___   /  /:/ /::\  
+/__/: /:/ /\ /__/:/  /  /\ /__/:/ /:/:\ 
+/  /:/ /:/  \  \:\ /  /:/ \  \:\/:/~/:/
+/__/:/ /:/    \  \:\  /:/   \  \::/ /:/
+/  /:/ /:/      \  \:\/:/     \__\/ /:/
+/__/:/ /:/       \  \::/        /__/: /
+\__\/  \:\        \__\/         \__\/ :
+    \  \:\                       /__/ /
+     \__\/                       \__\/ 
+
+GamerKhaan Ping Monitor - Level Up Your Connection! 🎉
+"@ -ForegroundColor Cyan
+Write-Host "Quest started at $($startTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor Gray
 Write-Host "============================================================================" -ForegroundColor Cyan
-Write-Host "" # Add a blank line for spacing
-
-# Print the initial header
+Write-Host ""
 Write-Header -Servers $servers -ColumnWidth $columnWidth -DisplayNames $serverDisplayNames
+Write-Host "Pinging servers in 2 seconds... Get ready! 🚀" -ForegroundColor Gray
+Start-Sleep -Seconds 2
 
-# Add a small pause to let the user see the header before the pings start
-Write-Host "Starting pings in 2 seconds..." -ForegroundColor Gray
-Start-Sleep -Seconds 1
-
-# --- Step 2: Start the Main Ping Loop ---
-# It's good practice to clean up the runspace pool when the script is stopped
  $runspacePool = $null
 try {
-    # Create a Runspace Pool to run scripts in parallel
     $runspacePool = [RunspaceFactory]::CreateRunspacePool(1, [int]$servers.Count)
     $runspacePool.Open()
-
-    # Initialize a counter for the rows
     $rowCounter = 0
-
-    # This is the main loop that keeps the pings running
     while ($true) {
-        # --- Step 2a: Kick off all ping jobs in parallel ---
         $runspaces = @()
         foreach ($server in $servers) {
             $powershell = [PowerShell]::Create().AddScript({
                 param($ServerName)
-                # Send one ping. -ErrorAction SilentlyContinue hides red text for timeouts.
                 Test-Connection -ComputerName $ServerName -Count 1 -ErrorAction SilentlyContinue
             }).AddParameter("ServerName", $server)
-            
             $powershell.RunspacePool = $runspacePool
             $runspaces += [PSCustomObject]@{
                 Server = $server
@@ -137,75 +118,132 @@ try {
                 Result = $powershell.BeginInvoke()
             }
         }
-
-        # --- Step 2b: Wait for all jobs to complete with a timeout ---
         $currentPingResults = @{}
         foreach ($runspace in $runspaces) {
-            # --- FIX: Wait for a maximum of 1500ms for each ping to complete ---
             if ($runspace.Result.AsyncWaitHandle.WaitOne(1500)) {
-                # It completed in time, get the result
                 $pingResult = $runspace.PowerShell.EndInvoke($runspace.Result)
                 $latency = if ($pingResult) { $pingResult.ResponseTime } else { "Timeout" }
             } else {
-                # It timed out, set latency to "Timeout"
                 $latency = "Timeout"
-                # We still need to call EndInvoke to clean up, but it might throw an error
                 try { $runspace.PowerShell.EndInvoke($runspace.Result) } catch { }
             }
-            # Store results in a hash table for easy lookup
             $currentPingResults[$runspace.Server] = $latency
             $runspace.PowerShell.Dispose()
         }
-
-        # --- Step 2c: Display the new results as a single row ---
         foreach ($server in $servers) {
             $latency = $currentPingResults[$server]
-            
-            # --- UPDATED: UNIVERSAL COLOR LOGIC ---
-            $color = "White" # Default color
-            $text = "$latency ms"
-
+            $serverData = $pingData[$server]
             if ($latency -eq "Timeout") {
-                $color = "White"
-                $text = "Timeout"
+                $serverData.Timeouts++
+            } else {
+                $serverData.Latencies.Add([int]$latency)
             }
-            elseif ($latency -lt 75) {
-                $color = "Green"
+            $color = "White"
+            if ($latency -eq "Timeout") {
+                $text = "Timeout ⚠️"
+                $latencyText = $text
+                $msText = ""
+            } else {
+                $latencyText = [string]$latency
+                $msText = " ms"
+                if ($server -like "*uae*") {
+                    if ($latency -lt 75) { $color = "Green" }
+                    elseif ($latency -le 100) { $color = "Yellow" }
+                    else { $color = "Red" }
+                } else {
+                    if ($latency -lt 110) { $color = "Green" }
+                    elseif ($latency -le 135) { $color = "Yellow" }
+                    else { $color = "Red" }
+                }
             }
-            elseif ($latency -ge 75 -and $latency -le 110) {
-                $color = "DarkYellow"
-            }
-            elseif ($latency -gt 110) {
-                $color = "Red"
-            }
-            
-            # Center the text within the full column width to ensure alignment
-            $padding = ($columnWidth - $text.Length) / 2
+            $fullText = $latencyText + $msText
+            $padding = ($columnWidth - $fullText.Length) / 2
             $leftPadding = [math]::Floor($padding)
             $rightPadding = [math]::Ceiling($padding)
-            $outputText = (" " * $leftPadding) + $text + (" " * $rightPadding)
-            
-            Write-Host $outputText -NoNewline -ForegroundColor $color
+            Write-Host (" " * $leftPadding) -NoNewline
+            Write-Host $latencyText -NoNewline -ForegroundColor $color
+            if ($msText) {
+                Write-Host "ms" -NoNewline -ForegroundColor Magenta
+            }
+            Write-Host (" " * $rightPadding) -NoNewline
         }
-        
-        Write-Host "" # Move to the next line for the next round of pings
+        Write-Host ""
         $rowCounter++
-
-        # --- Reprint headers after the first line, and then periodically ---
         if ($rowCounter -eq 1 -or $rowCounter % $headerInterval -eq 0) {
-            Write-Host "" # Add a little space before the next header block
+            Write-Host ""
             Write-Header -Servers $servers -ColumnWidth $columnWidth -DisplayNames $serverDisplayNames
         }
-
-        # Wait for 0.55 seconds before the next round of pings
-        Start-Sleep -Seconds 0.55
+        Start-Sleep -Milliseconds 500  # Smoother update
     }
 }
 finally {
-    # This block runs when you press CTRL+C to ensure the pool is closed properly
+    $endTime = Get-Date
+    $duration = $endTime - $startTime
     if ($runspacePool -ne $null) {
         $runspacePool.Close()
         $runspacePool.Dispose()
-        Write-Host "`nPing monitor stopped. Runspace pool closed." -ForegroundColor Yellow
     }
+    Write-Host "`nQuest completed! Ping monitor stopped." -ForegroundColor Yellow
+    Write-Host "Total playtime: $($duration.ToString('hh\:mm\:ss'))" -ForegroundColor Gray
+    Write-Host "`n==================== Epic Summary ====================" -ForegroundColor Cyan
+    foreach ($server in $servers) {
+        $displayName = $serverDisplayNames[$server]
+        if (-not $displayName) { $displayName = $server }
+        $data = $pingData[$server]
+        $totalPings = $data.Latencies.Count + $data.Timeouts
+        if ($totalPings -eq 0) {
+            Write-Host "${displayName}: No pings logged. 😔" -ForegroundColor Gray
+            continue
+        }
+        $packetLoss = [math]::Round(($data.Timeouts / $totalPings) * 100, 2)
+        $packetLossDisplay = "{0:0.0}" -f $packetLoss
+        $packetLossColor = if ($packetLoss -eq 0) { "Green" } else { "Red" }
+        $lossIcon = if ($packetLoss -eq 0) { "✅" } else { "❌" }
+        if ($data.Latencies.Count -gt 0) {
+            $min = ($data.Latencies | Measure-Object -Minimum).Minimum
+            $max = ($data.Latencies | Measure-Object -Maximum).Maximum
+            $avg = [math]::Round(($data.Latencies | Measure-Object -Average).Average, 2)
+            if ($server -like "*uae*") {
+                $minColor = if ($min -lt 75) { "Green" } elseif ($min -le 100) { "Yellow" } else { "Red" }
+                $maxColor = if ($max -lt 75) { "Green" } elseif ($max -le 100) { "Yellow" } else { "Red" }
+                $avgColor = if ($avg -lt 75) { "Green" } elseif ($avg -le 100) { "Yellow" } else { "Red" }
+            } else {
+                $minColor = if ($min -lt 110) { "Green" } elseif ($min -le 135) { "Yellow" } else { "Red" }
+                $maxColor = if ($max -lt 110) { "Green" } elseif ($max -le 135) { "Yellow" } else { "Red" }
+                $avgColor = if ($avg -lt 110) { "Green" } elseif ($avg -le 135) { "Yellow" } else { "Red" }
+            }
+            $minIcon = "🏆"
+            $maxIcon = "⚡"
+            $avgIcon = "📊"
+        } else {
+            $min = "N/A"
+            $max = "N/A"
+            $avg = "N/A"
+            $minColor = "Gray"
+            $maxColor = "Gray"
+            $avgColor = "Gray"
+            $minIcon = ""
+            $maxIcon = ""
+            $avgIcon = ""
+        }
+        Write-Host $displayName -NoNewline -ForegroundColor Cyan
+        Write-Host ":" -ForegroundColor White
+        Write-Host "  Packet Loss: " -NoNewline -ForegroundColor Gray
+        Write-Host "$packetLossDisplay% $lossIcon" -ForegroundColor $packetLossColor
+        Write-Host "  Min Ping: " -NoNewline -ForegroundColor Gray
+        Write-Host $min -NoNewline -ForegroundColor $minColor
+        Write-Host " " -NoNewline
+        Write-Host "ms $minIcon" -ForegroundColor Magenta
+        Write-Host "  Max Ping: " -NoNewline -ForegroundColor Gray
+        Write-Host $max -NoNewline -ForegroundColor $maxColor
+        Write-Host " " -NoNewline
+        Write-Host "ms $maxIcon" -ForegroundColor Magenta
+        Write-Host "  Avg Ping: " -NoNewline -ForegroundColor Gray
+        Write-Host $avg -NoNewline -ForegroundColor $avgColor
+        Write-Host " " -NoNewline
+        Write-Host "ms $avgIcon" -ForegroundColor Magenta
+        Write-Host ""
+    }
+    Write-Host "=================================================" -ForegroundColor Cyan
+    Write-Host "Online Gaming Perfected ! 💪" -ForegroundColor Green
 }
