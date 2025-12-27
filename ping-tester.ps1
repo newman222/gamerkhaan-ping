@@ -18,7 +18,8 @@
 }
 
  $headerInterval = 15
- $columnWidth = 20  # Increased a bit for emojis
+# Increased column width to prevent padding errors with complex characters
+ $columnWidth = 22 
 
 function Write-Header {
     param($Servers, $ColumnWidth, $DisplayNames)
@@ -30,11 +31,12 @@ function Write-Header {
         $totalPadding = $ColumnWidth - $displayName.Length
         $leftPadding = [math]::Floor($totalPadding / 2)
         $rightPadding = $ColumnWidth - $leftPadding - $displayName.Length
-        Write-Host (" " * $leftPadding) -NoNewline
+        
+        # FIX: Use Max(0, ...) to prevent negative padding which causes the crash
+        Write-Host (" " * [math]::Max(0, $leftPadding)) -NoNewline
 
         # --- Color Logic ---
         if ($displayName -like "*GamerKhaan*") {
-            # Splits "🕹️ GamerKhaan UAE" into parts
             $parts = $displayName -split ' ', 3
             Write-Host $parts[0] -NoNewline # Emoji
             Write-Host " " -NoNewline
@@ -42,7 +44,6 @@ function Write-Header {
             Write-Host " " -NoNewline
             Write-Host $parts[2] -NoNewline -ForegroundColor White  # "EU" or "UAE"
         } elseif ($displayName -like "*EpicGames*") {
-            # Splits "🎮 EpicGames EU" into parts
             $parts = $displayName -split ' ', 3
             Write-Host $parts[0] -NoNewline # Emoji
             Write-Host " " -NoNewline
@@ -50,7 +51,6 @@ function Write-Header {
             Write-Host " " -NoNewline
             Write-Host $parts[2] -NoNewline -ForegroundColor White  # "EU" or "UAE"
         } else {
-            # Default coloring for public DNS servers
             $headerColor = "Cyan"
             if ($displayName -like "*1.1.1.1*") { $headerColor = "White" }
             elseif ($displayName -like "*4.2.2.2*") { $headerColor = "Magenta" }
@@ -58,7 +58,8 @@ function Write-Header {
         }
         # --- End Color Logic ---
         
-        Write-Host (" " * $rightPadding) -NoNewline
+        # FIX: Use Max(0, ...) to prevent negative padding which causes the crash
+        Write-Host (" " * [math]::Max(0, $rightPadding)) -NoNewline
     }
     Write-Host ""
     Write-Host ("═" * ($ColumnWidth * $Servers.Count)) -ForegroundColor Cyan
@@ -160,12 +161,14 @@ try {
             $padding = ($columnWidth - $fullText.Length) / 2
             $leftPadding = [math]::Floor($padding)
             $rightPadding = [math]::Ceiling($padding)
-            Write-Host (" " * $leftPadding) -NoNewline
+            
+            # FIX: Use Max(0, ...) to prevent negative padding which causes the crash
+            Write-Host (" " * [math]::Max(0, $leftPadding)) -NoNewline
             Write-Host $latencyText -NoNewline -ForegroundColor $color
             if ($msText) {
                 Write-Host "ms" -NoNewline -ForegroundColor Magenta
             }
-            Write-Host (" " * $rightPadding) -NoNewline
+            Write-Host (" " * [math]::Max(0, $rightPadding)) -NoNewline
         }
         Write-Host ""
         $rowCounter++
@@ -245,5 +248,5 @@ finally {
         Write-Host ""
     }
     Write-Host "=================================================" -ForegroundColor Cyan
-    Write-Host "Online Gaming Perfected ! 💪" -ForegroundColor Green
+    Write-Host "Thanks for playing Games ! Keep gaming strong! 💪" -ForegroundColor Green
 }
