@@ -168,6 +168,7 @@ try {
             if ($msText) {
                 Write-Host "ms" -NoNewline -ForegroundColor Magenta
             }
+            # FIX: Use Max(0, ...) to prevent negative padding which causes the crash
             Write-Host (" " * [math]::Max(0, $rightPadding)) -NoNewline
         }
         Write-Host ""
