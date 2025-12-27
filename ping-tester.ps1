@@ -1,4 +1,4 @@
-# --- CMD-Compatible Version ---
+# --- Fully CMD-Compatible Version with Simple Characters ---
 
  $servers = @(
     "1.1.1.1",
@@ -9,14 +9,14 @@
     "eu.gamerkhaan.com"
 )
 
-# --- Changed: Removed emojis and used hyphens for CMD compatibility ---
+# --- Changed: Updated names and removed [DNS] and <3 ---
  $serverDisplayNames = @{
     "1.1.1.1" = "1.1.1.1"
     "4.2.2.2" = "4.2.2.2"
-    "eu-epic.gamerkhaan.com" = "EpicGames-EU"
-    "uae-epic.gamerkhaan.com" = "EpicGames-UAE"
-    "uae.gamerkhaan.com" = "GamerKhaan-UAE"
-    "eu.gamerkhaan.com" = "GamerKhaan-EU"
+    "eu-epic.gamerkhaan.com" = "EpicGames EU"
+    "uae-epic.gamerkhaan.com" = "EpicGames UAE"
+    "uae.gamerkhaan.com" = "GamerKhaan UAE"
+    "eu.gamerkhaan.com" = "GamerKhaan EU"
 }
 
  $headerInterval = 15
@@ -38,17 +38,17 @@ function Write-Header {
         
         Write-Host (" " * [math]::Max(0, $leftPadding)) -NoNewline
 
-        # --- Changed: Updated color logic for hyphenated names ---
+        # --- Changed: Updated color logic for separate name parts ---
         if ($displayName -like "*GamerKhaan*") {
-            $parts = $displayName -split '-'
-            Write-Host $parts[0] -NoNewline -ForegroundColor Yellow # "GamerKhaan"
-            Write-Host "-" -NoNewline -ForegroundColor White
-            Write-Host $parts[1] -NoNewline -ForegroundColor White  # "EU" or "UAE"
+            $parts = $displayName -split ' '
+            Write-Host $parts[0] -NoNewline -ForegroundColor White # "GamerKhaan"
+            Write-Host " " -NoNewline
+            Write-Host $parts[1] -NoNewline -ForegroundColor Yellow # "EU" or "UAE"
         } elseif ($displayName -like "*EpicGames*") {
-            $parts = $displayName -split '-'
+            $parts = $displayName -split ' '
             Write-Host $parts[0] -NoNewline -ForegroundColor Red    # "EpicGames"
-            Write-Host "-" -NoNewline -ForegroundColor White
-            Write-Host $parts[1] -NoNewline -ForegroundColor White  # "EU" or "UAE"
+            Write-Host " " -NoNewline
+            Write-Host $parts[1] -NoNewline -ForegroundColor Yellow # "EU" or "UAE"
         } else {
             $headerColor = "Cyan"
             if ($displayName -like "*1.1.1.1*") { $headerColor = "White" }
@@ -63,7 +63,7 @@ function Write-Header {
             Write-Host (" " * [math]::Max(0, $rightPadding)) -NoNewline
         }
     }
-    Write-Host ("═" * ($ColumnWidth * $Servers.Count)) -ForegroundColor Cyan
+    Write-Host ("=" * ($ColumnWidth * $Servers.Count)) -ForegroundColor Cyan
 }
 
  $pingData = @{}
@@ -93,14 +93,13 @@ Write-Host @"
     \  \:\                       /__/ /
      \__\/                       \__\/ 
 
-GamerKhaan Ping Monitor - Level Up Your Connection!
+GamerKhaan Ping Monitor - Online Gaming Perfected!
 "@ -ForegroundColor Cyan
 Write-Host "Quest started at $($startTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor Gray
 Write-Host "============================================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Header -Servers $servers -ColumnWidth $columnWidth -DisplayNames $serverDisplayNames
 Write-Host "Pinging servers in 2 seconds... Get ready!" -ForegroundColor Gray
-Start-Sleep -Seconds 2
 
  $runspacePool = $null
 try {
@@ -174,7 +173,8 @@ try {
             Write-Host (" " * [math]::Max(0, $leftPadding)) -NoNewline
             Write-Host $latencyText -NoNewline -ForegroundColor $color
             if ($msText) {
-                Write-Host $msText -NoNewline -ForegroundColor Magenta
+                # --- Changed: ms text color to Red ---
+                Write-Host $msText -NoNewline -ForegroundColor Red
             }
             
             # --- Changed: More robust newline handling for CMD ---
@@ -200,22 +200,40 @@ finally {
         $runspacePool.Close()
         $runspacePool.Dispose()
     }
-    Write-Host "`nQuest completed! Ping monitor stopped." -ForegroundColor Yellow
+    Write-Host "`nQuest completed!" -ForegroundColor Yellow
     Write-Host "Total playtime: $($duration.ToString('hh\:mm\:ss'))" -ForegroundColor Gray
-    Write-Host "`n==================== Epic Summary ====================" -ForegroundColor Cyan
+    Write-Host "`n==================== Summary ====================" -ForegroundColor Cyan
     foreach ($server in $servers) {
         $displayName = $serverDisplayNames[$server]
         if (-not $displayName) { $displayName = $server }
         $data = $pingData[$server]
         $totalPings = $data.Latencies.Count + $data.Timeouts
         if ($totalPings -eq 0) {
-            Write-Host "${displayName}: No pings logged." -ForegroundColor Gray
+            # --- Changed: Using color pattern for server name here too ---
+            if ($displayName -like "*GamerKhaan*") {
+                $parts = $displayName -split ' '
+                Write-Host $parts[0] -NoNewline -ForegroundColor White
+                Write-Host " " -NoNewline
+                Write-Host $parts[1] -NoNewline -ForegroundColor Yellow
+            } elseif ($displayName -like "*EpicGames*") {
+                $parts = $displayName -split ' '
+                Write-Host $parts[0] -NoNewline -ForegroundColor Red
+                Write-Host " " -NoNewline
+                Write-Host $parts[1] -NoNewline -ForegroundColor Yellow
+            } else {
+                $headerColor = "Cyan"
+                if ($displayName -like "*1.1.1.1*") { $headerColor = "White" }
+                elseif ($displayName -like "*4.2.2.2*") { $headerColor = "Magenta" }
+                Write-Host $displayName -NoNewline -ForegroundColor $headerColor
+            }
+            Write-Host ": No pings logged." -ForegroundColor Gray
             continue
         }
         $packetLoss = [math]::Round(($data.Timeouts / $totalPings) * 100, 2)
         $packetLossDisplay = "{0:0.0}" -f $packetLoss
         $packetLossColor = if ($packetLoss -eq 0) { "Green" } else { "Red" }
-        $lossIcon = if ($packetLoss -eq 0) { "[OK]" } else { "[LOSS]" }
+        # --- Changed: Removed [OK] and [LOSS] icons ---
+        
         if ($data.Latencies.Count -gt 0) {
             $min = ($data.Latencies | Measure-Object -Minimum).Minimum
             $max = ($data.Latencies | Measure-Object -Maximum).Maximum
@@ -243,25 +261,49 @@ finally {
             $maxIcon = ""
             $avgIcon = ""
         }
-        Write-Host $displayName -NoNewline -ForegroundColor Cyan
+        
+        # --- Changed: Using color pattern for server name here too ---
+        if ($displayName -like "*GamerKhaan*") {
+            $parts = $displayName -split ' '
+            Write-Host $parts[0] -NoNewline -ForegroundColor White
+            Write-Host " " -NoNewline
+            Write-Host $parts[1] -NoNewline -ForegroundColor Yellow
+        } elseif ($displayName -like "*EpicGames*") {
+            $parts = $displayName -split ' '
+            Write-Host $parts[0] -NoNewline -ForegroundColor Red
+            Write-Host " " -NoNewline
+            Write-Host $parts[1] -NoNewline -ForegroundColor Yellow
+        } else {
+            $headerColor = "Cyan"
+            if ($displayName -like "*1.1.1.1*") { $headerColor = "White" }
+            elseif ($displayName -like "*4.2.2.2*") { $headerColor = "Magenta" }
+            Write-Host $displayName -NoNewline -ForegroundColor $headerColor
+        }
         Write-Host ":" -ForegroundColor White
         Write-Host "  Packet Loss: " -NoNewline -ForegroundColor Gray
-        Write-Host "$packetLossDisplay% $lossIcon" -ForegroundColor $packetLossColor
+        # --- Changed: Removed icon from this line ---
+        Write-Host "$packetLossDisplay%" -ForegroundColor $packetLossColor
         Write-Host "  Min Ping: " -NoNewline -ForegroundColor Gray
         Write-Host $min -NoNewline -ForegroundColor $minColor
         Write-Host " " -NoNewline
-        Write-Host "ms $minIcon" -ForegroundColor Magenta
+        # --- Changed: ms color to Red, icon color to Green ---
+        Write-Host "ms " -NoNewline -ForegroundColor Red
+        Write-Host $minIcon -ForegroundColor Green
         Write-Host "  Max Ping: " -NoNewline -ForegroundColor Gray
         Write-Host $max -NoNewline -ForegroundColor $maxColor
         Write-Host " " -NoNewline
-        Write-Host "ms $maxIcon" -ForegroundColor Magenta
+        # --- Changed: ms color to Red, icon color to Red ---
+        Write-Host "ms " -NoNewline -ForegroundColor Red
+        Write-Host $maxIcon -ForegroundColor Red
         Write-Host "  Avg Ping: " -NoNewline -ForegroundColor Gray
         Write-Host $avg -NoNewline -ForegroundColor $avgColor
         Write-Host " " -NoNewline
-        Write-Host "ms $avgIcon" -ForegroundColor Magenta
+        # --- Changed: ms color to Red, icon color to Yellow ---
+        Write-Host "ms " -NoNewline -ForegroundColor Red
+        Write-Host $avgIcon -ForegroundColor Yellow
         Write-Host ""
     }
     Write-Host "=================================================" -ForegroundColor Cyan
     # --- Changed: Removed emoji from final message ---
-    Write-Host "Thanks for playing Games! Keep gaming strong!" -ForegroundColor Green
+    Write-Host "Thanks for playing Games!" -ForegroundColor Green
 }
