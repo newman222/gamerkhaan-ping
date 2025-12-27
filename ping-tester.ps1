@@ -100,7 +100,6 @@ Write-Host "Quest started at $($startTime.ToString('yyyy-MM-dd HH:mm:ss'))" -For
 Write-Host "============================================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Header -Servers $servers -ColumnWidth $columnWidth -DisplayNames $serverDisplayNames
-Write-Host "Pinging servers in 2 seconds... Get ready!" -ForegroundColor Gray
 
  $runspacePool = $null
 try {
