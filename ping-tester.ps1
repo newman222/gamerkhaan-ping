@@ -1,3 +1,5 @@
+# --- CMD-Compatible Version ---
+
  $servers = @(
     "1.1.1.1",
     "4.2.2.2",
@@ -7,61 +9,60 @@
     "eu.gamerkhaan.com"
 )
 
-# Updated display names to use a space for better color splitting
+# --- Changed: Removed emojis and used hyphens for CMD compatibility ---
  $serverDisplayNames = @{
-    "1.1.1.1" = "🌐 1.1.1.1"
-    "4.2.2.2" = "🌐 4.2.2.2"
-    "eu-epic.gamerkhaan.com" = "🎮 EpicGames EU"
-    "uae-epic.gamerkhaan.com" = "🎮 EpicGames UAE"
-    "uae.gamerkhaan.com" = "🕹️ GamerKhaan UAE"
-    "eu.gamerkhaan.com" = "🕹️ GamerKhaan EU"
+    "1.1.1.1" = "1.1.1.1"
+    "4.2.2.2" = "4.2.2.2"
+    "eu-epic.gamerkhaan.com" = "EpicGames-EU"
+    "uae-epic.gamerkhaan.com" = "EpicGames-UAE"
+    "uae.gamerkhaan.com" = "GamerKhaan-UAE"
+    "eu.gamerkhaan.com" = "GamerKhaan-EU"
 }
 
  $headerInterval = 15
-# Increased column width to prevent padding errors with complex characters
- $columnWidth = 22 
+# --- Changed: Adjusted column width for the new names ---
+ $columnWidth = 18
 
 function Write-Header {
     param($Servers, $ColumnWidth, $DisplayNames)
+    $serverCount = $Servers.Count
+    $i = 0
     foreach ($server in $Servers) {
+        $i++
         $displayName = $DisplayNames[$server]
         if (-not $displayName) { $displayName = $server }
         
-        # Calculate padding for the entire display name
         $totalPadding = $ColumnWidth - $displayName.Length
         $leftPadding = [math]::Floor($totalPadding / 2)
         $rightPadding = $ColumnWidth - $leftPadding - $displayName.Length
         
-        # FIX: Use Max(0, ...) to prevent negative padding which causes the crash
         Write-Host (" " * [math]::Max(0, $leftPadding)) -NoNewline
 
-        # --- Color Logic ---
+        # --- Changed: Updated color logic for hyphenated names ---
         if ($displayName -like "*GamerKhaan*") {
-            $parts = $displayName -split ' ', 3
-            Write-Host $parts[0] -NoNewline # Emoji
-            Write-Host " " -NoNewline
-            Write-Host $parts[1] -NoNewline -ForegroundColor Yellow # "GamerKhaan"
-            Write-Host " " -NoNewline
-            Write-Host $parts[2] -NoNewline -ForegroundColor White  # "EU" or "UAE"
+            $parts = $displayName -split '-'
+            Write-Host $parts[0] -NoNewline -ForegroundColor Yellow # "GamerKhaan"
+            Write-Host "-" -NoNewline -ForegroundColor White
+            Write-Host $parts[1] -NoNewline -ForegroundColor White  # "EU" or "UAE"
         } elseif ($displayName -like "*EpicGames*") {
-            $parts = $displayName -split ' ', 3
-            Write-Host $parts[0] -NoNewline # Emoji
-            Write-Host " " -NoNewline
-            Write-Host $parts[1] -NoNewline -ForegroundColor Red    # "EpicGames"
-            Write-Host " " -NoNewline
-            Write-Host $parts[2] -NoNewline -ForegroundColor White  # "EU" or "UAE"
+            $parts = $displayName -split '-'
+            Write-Host $parts[0] -NoNewline -ForegroundColor Red    # "EpicGames"
+            Write-Host "-" -NoNewline -ForegroundColor White
+            Write-Host $parts[1] -NoNewline -ForegroundColor White  # "EU" or "UAE"
         } else {
             $headerColor = "Cyan"
             if ($displayName -like "*1.1.1.1*") { $headerColor = "White" }
             elseif ($displayName -like "*4.2.2.2*") { $headerColor = "Magenta" }
             Write-Host $displayName -NoNewline -ForegroundColor $headerColor
         }
-        # --- End Color Logic ---
         
-        # FIX: Use Max(0, ...) to prevent negative padding which causes the crash
-        Write-Host (" " * [math]::Max(0, $rightPadding)) -NoNewline
+        # --- Changed: More robust newline handling for CMD ---
+        if ($i -eq $serverCount) {
+            Write-Host (" " * [math]::Max(0, $rightPadding)) # No -NoNewline for the last item
+        } else {
+            Write-Host (" " * [math]::Max(0, $rightPadding)) -NoNewline
+        }
     }
-    Write-Host ""
     Write-Host ("═" * ($ColumnWidth * $Servers.Count)) -ForegroundColor Cyan
 }
 
@@ -76,6 +77,7 @@ foreach ($server in $servers) {
  $startTime = Get-Date
 
 Clear-Host
+# --- Changed: Removed emojis from the banner ---
 Write-Host @"
    ___           ___           ___      
   /  /\         /  /\         /  /\     
@@ -91,13 +93,13 @@ Write-Host @"
     \  \:\                       /__/ /
      \__\/                       \__\/ 
 
-GamerKhaan Ping Monitor - Level Up Your Connection! 🎉
+GamerKhaan Ping Monitor - Level Up Your Connection!
 "@ -ForegroundColor Cyan
 Write-Host "Quest started at $($startTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor Gray
 Write-Host "============================================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Header -Servers $servers -ColumnWidth $columnWidth -DisplayNames $serverDisplayNames
-Write-Host "Pinging servers in 2 seconds... Get ready! 🚀" -ForegroundColor Gray
+Write-Host "Pinging servers in 2 seconds... Get ready!" -ForegroundColor Gray
 Start-Sleep -Seconds 2
 
  $runspacePool = $null
@@ -131,22 +133,28 @@ try {
             $currentPingResults[$runspace.Server] = $latency
             $runspace.PowerShell.Dispose()
         }
+        
+        $serverCount = $servers.Count
+        $i = 0
         foreach ($server in $servers) {
+            $i++
             $latency = $currentPingResults[$server]
             $serverData = $pingData[$server]
             if ($latency -eq "Timeout") {
                 $serverData.Timeouts++
-            } else {
-                $serverData.Latencies.Add([int]$latency)
-            }
-            $color = "White"
-            if ($latency -eq "Timeout") {
-                $text = "Timeout ⚠️"
+                $text = "Timeout!"
                 $latencyText = $text
                 $msText = ""
             } else {
+                $serverData.Latencies.Add([int]$latency)
                 $latencyText = [string]$latency
-                $msText = " ms"
+                $msText = "ms"
+            }
+            
+            $color = "White"
+            if ($latency -eq "Timeout") {
+                $color = "Red"
+            } else {
                 if ($server -like "*uae*") {
                     if ($latency -lt 75) { $color = "Green" }
                     elseif ($latency -le 100) { $color = "Yellow" }
@@ -157,27 +165,32 @@ try {
                     else { $color = "Red" }
                 }
             }
+            
             $fullText = $latencyText + $msText
             $padding = ($columnWidth - $fullText.Length) / 2
             $leftPadding = [math]::Floor($padding)
             $rightPadding = [math]::Ceiling($padding)
             
-            # FIX: Use Max(0, ...) to prevent negative padding which causes the crash
             Write-Host (" " * [math]::Max(0, $leftPadding)) -NoNewline
             Write-Host $latencyText -NoNewline -ForegroundColor $color
             if ($msText) {
-                Write-Host "ms" -NoNewline -ForegroundColor Magenta
+                Write-Host $msText -NoNewline -ForegroundColor Magenta
             }
-            # FIX: Use Max(0, ...) to prevent negative padding which causes the crash
-            Write-Host (" " * [math]::Max(0, $rightPadding)) -NoNewline
+            
+            # --- Changed: More robust newline handling for CMD ---
+            if ($i -eq $serverCount) {
+                Write-Host (" " * [math]::Max(0, $rightPadding)) # No -NoNewline for the last item
+            } else {
+                Write-Host (" " * [math]::Max(0, $rightPadding)) -NoNewline
+            }
         }
-        Write-Host ""
+        
         $rowCounter++
         if ($rowCounter -eq 1 -or $rowCounter % $headerInterval -eq 0) {
             Write-Host ""
             Write-Header -Servers $servers -ColumnWidth $columnWidth -DisplayNames $serverDisplayNames
         }
-        Start-Sleep -Milliseconds 500  # Smoother update
+        Start-Sleep -Milliseconds 500
     }
 }
 finally {
@@ -196,13 +209,13 @@ finally {
         $data = $pingData[$server]
         $totalPings = $data.Latencies.Count + $data.Timeouts
         if ($totalPings -eq 0) {
-            Write-Host "${displayName}: No pings logged. 😔" -ForegroundColor Gray
+            Write-Host "${displayName}: No pings logged." -ForegroundColor Gray
             continue
         }
         $packetLoss = [math]::Round(($data.Timeouts / $totalPings) * 100, 2)
         $packetLossDisplay = "{0:0.0}" -f $packetLoss
         $packetLossColor = if ($packetLoss -eq 0) { "Green" } else { "Red" }
-        $lossIcon = if ($packetLoss -eq 0) { "✅" } else { "❌" }
+        $lossIcon = if ($packetLoss -eq 0) { "[OK]" } else { "[LOSS]" }
         if ($data.Latencies.Count -gt 0) {
             $min = ($data.Latencies | Measure-Object -Minimum).Minimum
             $max = ($data.Latencies | Measure-Object -Maximum).Maximum
@@ -216,9 +229,9 @@ finally {
                 $maxColor = if ($max -lt 110) { "Green" } elseif ($max -le 135) { "Yellow" } else { "Red" }
                 $avgColor = if ($avg -lt 110) { "Green" } elseif ($avg -le 135) { "Yellow" } else { "Red" }
             }
-            $minIcon = "🏆"
-            $maxIcon = "⚡"
-            $avgIcon = "📊"
+            $minIcon = "[MIN]"
+            $maxIcon = "[MAX]"
+            $avgIcon = "[AVG]"
         } else {
             $min = "N/A"
             $max = "N/A"
@@ -249,5 +262,6 @@ finally {
         Write-Host ""
     }
     Write-Host "=================================================" -ForegroundColor Cyan
-    Write-Host "Thanks for playing Games ! Keep gaming strong! 💪" -ForegroundColor Green
+    # --- Changed: Removed emoji from final message ---
+    Write-Host "Thanks for playing Games! Keep gaming strong!" -ForegroundColor Green
 }
